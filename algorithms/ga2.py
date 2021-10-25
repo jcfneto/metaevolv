@@ -1,7 +1,7 @@
 import numpy as np
 
 
-class GeneticAlgorithm2:
+class GeneticAlgorithm:
 
     # TODO: implementar elitismo.
     # TODO: bolar uma técnica que aumente a taxa de mutação assim que as gerações perdem disversidade.

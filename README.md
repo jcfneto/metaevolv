@@ -10,3 +10,4 @@ Algorithms were implemented for minimization problems. In the future I will impl
   - ga: Genetic Algorithm
   - ga2: Advanced Genetic Algorithm
   - pso: Particle Swarm Optimization
+  - abc: Artificial Bee Colony

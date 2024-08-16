@@ -1,9 +1,72 @@
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
+"""Particle Swarm Optimization (PSO) algorithm.
 
-# graphic style
-sns.set_style("whitegrid")
+This module contains the implementation of the Particle Swarm Optimization (PSO)
+algorithm. The PSO is a population-based optimization algorithm that uses the
+movement of particles to find the optimal solution. The algorithm is based on the
+work of Kennedy and Eberhart (1995). The algorithm is based on the following steps:
+
+1. Initialization: The algorithm starts by generating a population of particles.
+2. Movement: The algorithm updates the position of particles and their speeds.
+3. Update bests: The algorithm updates the best position of particles.
+4. Evaluation: The algorithm evaluates the new position of particles.
+5. Stopping criterion: The algorithm stops when a stopping criterion is met.
+6. Early stop: The algorithm stops if the optimal individual is found.
+
+The algorithm is controlled by the following parameters:
+
+- Number of particles: Number of particles in the swarm.
+- Maximum number of iterations: Maximum number of iterations.
+- Number of dimensions: Number of variables to be optimized.
+- Search range: Range of values for the variables.
+- Speed range: Range of speed values for the particles.
+- Inertial weighting: Inertial weighting parameter.
+- Cognitive and social parameters: Cognitive and social parameters.
+- Constrain factor: Activate the constrain factor.
+- Constrain factor parameter: Constrain factor parameter.
+"""
+
+from typing import Callable
+
+import matplotlib.pyplot as plt
+import numpy as np
+import seaborn as sns
+from numpy import ndarray
+from pydantic import BaseModel, Field, field_validator
+
+sns.set_style('whitegrid')
+
+
+class PSOConfig(BaseModel):
+    """Configuration class for Particle Swarm Optimization (PSO) algorithm."""
+
+    n_particles: int = Field(..., ge=1, description='Number of particles')
+    max_iter: int = Field(
+        ..., ge=1, description='Maximum number of iterations'
+    )
+    dimensions: int = Field(
+        ..., ge=1, description='Number of variables to be optimized'
+    )
+    search_range: tuple[float, float]
+    speed_range: tuple[float, float]
+    w: tuple[float, float] = Field(
+        (0.9, 0.4), description='Inertial weighting'
+    )
+    c: tuple[float, float] = Field(
+        (2.05, 2.05), description='Cognitive (c1) and social (c2) parameters'
+    )
+    const_factor: bool = Field(
+        False, description='Activate the constrain factor'
+    )
+    k: float = Field(1.0, description='Constrain factor parameter')
+
+    @field_validator('search_range', 'speed_range')
+    def check_range(cls, v: tuple[float, float]) -> tuple[float, float]:
+        """Check if the range is valid."""
+        if v[0] >= v[1]:
+            raise ValueError(
+                'Range must be a tuple where the first value is less than the second value'
+            )
+        return v
 
 
 class PSO:
@@ -12,123 +75,98 @@ class PSO:
     function of interest.
     """
 
-    def __init__(self, n_particles: int, max_iter: int, dimensions: int, search_range: tuple,
-                 speed_range: tuple, obj_func, **kwargs):
-        """
-        Description: Initializes the parameters for running the algorithm.
+    def __init__(
+        self, config: PSOConfig, obj_function: Callable[[ndarray], float]
+    ) -> None:
+        """Initializes the parameters for running the algorithm.
 
         Args:
-            n_particles : Number of particles.
-            max_iter    : Maximum number of iterations.
-            dimensions  : Number of variables to be optimized.
-            search_range: Lower and upper limit for the variables that are to be optimized.
-            speed_range : Lower and upper limit for speed parameter.
-            obj_func    : Function to be minimized
-            **kwargs    :
-
-                w           : Inertial weighting. Default: (0.9, 0.4).
-                c           : Cognitive (c1) and social c2) parameter (learning rate). Default: (2.05, 2.05).
-                const_factor: Bool value to activate the constrain factor. Default: False.
-                k           : ***
+            config (PSOConfig): Configuration object containing all the parameters.
+            obj_function (Callable[[ndarray], float]): Objective function to be minimized.
         """
+        self.config = config
+        self.obj_function = obj_function
 
-        # hyperparameters
-        self.n_particles = n_particles
-        self.max_iter = max_iter
-        self.dimensions = dimensions
-        self.search_range = search_range
-        self.speed_range = speed_range
-        self.obj_func = obj_func
-        self.w = (0.9, 0.4)
-        self.c = (2.05, 2.05)
-        self.const_factor = False
-        self.k = 1
+        self.phi = np.sum(self.config.c)
 
-        # getting options parameters
-        for (k, v) in kwargs.items():
-            setattr(self, k, v)
-
-        # calculating variable parameters
-        self.phi = np.sum(self.c)
-
-        # if not constrain factor, calculetes w
-        if not self.const_factor:
-            self.w = self.w[1] - ((self.w[1] - self.w[0]) / max_iter) * np.linspace(0, self.max_iter, self.max_iter)
+        if not self.config.const_factor:
+            self.config.w = self.config.w[1] - (
+                (self.config.w[1] - self.config.w[0]) / self.config.max_iter
+            ) * np.linspace(0, self.config.max_iter, self.config.max_iter)
         else:
-            print('Constrain Factor')
-            self.const_factor = (2 * self.k) / np.abs((2 - self.phi - np.sqrt((self.phi ** 2) - (4 * self.phi))))
+            self.const_factor_value = (2 * self.config.k) / np.abs(
+                (2 - self.phi - np.sqrt((self.phi**2) - (4 * self.phi)))
+            )
 
-        # rng
-        self.r1 = np.random.random(max_iter)
-        self.r2 = np.random.random(max_iter)
+        self.r1 = np.random.random(self.config.max_iter)
+        self.r2 = np.random.random(self.config.max_iter)
 
-        # initializing the particles
-        self.particles = np.random.uniform(self.search_range[0],
-                                           self.search_range[1],
-                                           (self.n_particles, self.dimensions))
+        self.particles = np.random.uniform(
+            self.config.search_range[0],
+            self.config.search_range[1],
+            (self.config.n_particles, self.config.dimensions),
+        )
 
-        # initializing the velocities
-        self.velocities = np.random.uniform(self.speed_range[0],
-                                            self.speed_range[1],
-                                            (self.n_particles, self.dimensions))
+        self.velocities = np.random.uniform(
+            self.config.speed_range[0],
+            self.config.speed_range[1],
+            (self.config.n_particles, self.config.dimensions),
+        )
 
-        # variables to store the results
         self.p_best = self.particles
-        self.p_best_eval = np.array([self.obj_func(p) for p in self.p_best])
+        self.p_best_eval = np.array(
+            [self.obj_function(p) for p in self.p_best]
+        )
         self.g_best_eval = [np.min(self.p_best_eval)]
         self.g_best = self.particles[np.argmin(self.p_best_eval)]
         self.evol_best_eval = []
         self.movements = 1
-
-        # remover depois
         self.hist = []
 
-    def update_velocities_particles(self, k: int):
-        """
-        Description: Updates the position of particles and their speeds.
+
+    def _update_velocities_particles(self, k: int) -> None:
+        """Updates the position of particles and their speeds.
 
         Args:
-            k: Current iteration (iteration n).
+            k (int): Current iteration.
         """
+        commom = self.config.c[0] * self.r1[k] * (
+            self.p_best - self.particles
+        ) + self.config.c[1] * self.r2[k] * (self.g_best - self.particles)
 
-        # the commom part of equation
-        commom = self.c[0] * self.r1[k] * (self.p_best - self.particles) + \
-                 self.c[1] * self.r2[k] * (self.g_best - self.particles)
-
-        # updating velocities (if constrain factor was true or false)
-        if self.const_factor:
-            self.velocities = self.const_factor * commom
+        if self.config.const_factor:
+            self.velocities = self.const_factor_value * commom
         else:
-            self.velocities = (self.w[k] * self.velocities) + commom
+            self.velocities = (self.config.w[k] * self.velocities) + commom
 
-        # updating particles
         self.particles += self.velocities
+        self.particles = np.clip(
+            self.particles,
+            self.config.search_range[0],
+            self.config.search_range[1],
+        )
 
-        # limiting if values exceed limits
-        self.particles = np.where(self.particles < self.search_range[0], self.search_range[0], self.particles)
-        self.particles = np.where(self.particles > self.search_range[1], self.search_range[1], self.particles)
-        self.velocities = np.where(self.velocities < self.speed_range[0], self.speed_range[0], self.velocities)
-        self.velocities = np.where(self.velocities > self.speed_range[1], self.speed_range[1], self.velocities)
-        res_min1, res_min2 = np.where(self.particles == self.search_range[0])
-        res_max1, res_max2 = np.where(self.particles == self.search_range[1])
+        self.velocities = np.clip(
+            self.velocities,
+            self.config.speed_range[0],
+            self.config.speed_range[1],
+        )
+        self.velocities = np.where(
+            (self.particles == self.config.search_range[0])
+            | (self.particles == self.config.search_range[1]),
+            0,
+            self.velocities,
+        )
 
-        # Set speed to 0 when needed
-        for idx_min in list(zip(res_min1, res_min2)):
-            self.velocities[idx_min] = 0
 
-        for idx_max in list(zip(res_max1, res_max2)):
-            self.velocities[idx_max] = 0
-
-    def update_bests(self, i: int):
-        """
-        Description: Updates the p_best and g_best.
+    def _update_bests(self, i: int) -> None:
+        """Updates the p_best and g_best.
 
         Args:
-            i: Current particle (particle i).
+            i (int): Particle index.
         """
-
         xi = self.particles[i]
-        xi_eval = self.obj_func(xi)
+        xi_eval = self.obj_function(xi)
 
         if xi_eval < self.p_best_eval[i]:
             self.p_best_eval[i] = xi_eval
@@ -138,14 +176,13 @@ class PSO:
                 self.g_best_eval.append(xi_eval)
                 self.g_best = xi
 
-    def plot(self, log: bool = False):
-        """
-        Description: Plot the score evolution graph.
+
+    def plot(self, log: bool = False) -> None:
+        """Plot the score evolution graph.
 
         Args:
-             log: Bool value to change scale of y axis to log. Default: False.
+            log (bool, optional): If True, the y-axis will be in logarithmic scale. Defaults to False.
         """
-
         plt.figure(figsize=(10, 7))
         plt.plot(np.arange(0, self.movements), self.evol_best_eval, c='black')
         if log:
@@ -157,22 +194,17 @@ class PSO:
         sns.despine(bottom=False, left=False)
         plt.show()
 
-    def fit(self):
-        """
-        Description: Runs the PSO algorithm.
-        """
 
-        # moving
-        for k in range(self.max_iter):
+    def fit(self) -> None:
+        """Runs the PSO algorithm."""
+        for k in range(self.config.max_iter):
             self.hist.append(self.particles)
             self.movements = k + 1
-            self.update_velocities_particles(k=k)
+            self._update_velocities_particles(k=k)
             self.evol_best_eval.append(np.min(self.p_best_eval))
 
-            # check if optimal solution was found
             if self.g_best_eval[-1] == 0.0:
                 break
 
-            # updating p_best and g_best
-            for i in range(self.n_particles):
-                self.update_bests(i=i)
+            for i in range(self.config.n_particles):
+                self._update_bests(i=i)

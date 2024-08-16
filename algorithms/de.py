@@ -1,9 +1,81 @@
+"""Differential Evolution Algorithm.
+
+This module contains the implementation of the Differential Evolution (DE) algorithm. The DE is a
+population-based optimization algorithm that uses the difference of vectors to generate new
+candidates. The algorithm is based on the work of Storn and Price (1997). The algorithm is
+based on the following steps:
+
+1. Initialization: The algorithm starts by generating a population of candidate solutions.
+2. Mutation: The algorithm generates a new candidate by adding the difference of two vectors to a third vector.
+3. Crossover: The algorithm generates a trial vector by combining the new candidate with the target vector.
+4. Selection: The algorithm selects the best candidate to form the new population.
+5. Evaluation: The new population is evaluated.
+6. Stopping criterion: The algorithm stops when a stopping criterion is met.
+7. Early stop: The algorithm stops if the optimal individual is found.
+
+The algorithm is controlled by the following parameters:
+
+- Search range: Lower and upper limit for the variables that are to be optimized.
+- Population size: Number of candidates to solve the problem.
+- Dimensions: Number of variables to be optimized.
+- Objective function: Function to be minimized.
+- Step size: Step size towards the difference vector.
+- Probability of crossover occurrence: Probability of crossover occurrence.
+- Maximum number of iterations: Maximum number of iterations.
+- Opposition: Whether the algorithm will run with opposition.
+- Jump rate: Probability of occurrence of opposition.
+"""
+
+from typing import Callable
+
+import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
-import matplotlib.pyplot as plt
+from numpy import ndarray
+from pydantic import BaseModel, Field, field_validator
 
-# setting the graphic style
 sns.set_style('whitegrid')
+
+
+class DifferentialEvolutionConfig(BaseModel):
+    """Configuration for the Differential Evolution Algorithm."""
+
+    search_range: tuple[float, float]
+    n_population: int = Field(
+        ..., ge=1, description='Number of candidates to solve the problem'
+    )
+    dimensions: int = Field(
+        ..., ge=1, description='Number of variables to be optimized'
+    )
+    f: float = Field(
+        ..., ge=0, description='Step size towards the difference vector'
+    )
+    cr: float = Field(
+        ..., ge=0, le=1, description='Probability of crossover occurrence'
+    )
+    max_iter: int = Field(
+        ..., ge=1, description='Maximum number of iterations'
+    )
+    opposition: bool = Field(
+        False, description='Whether the algorithm will run with opposition'
+    )
+    jr: float = Field(
+        1.0,
+        ge=0,
+        le=1,
+        description='Jump rate. Probability of occurrence of opposition',
+    )
+
+    @field_validator('search_range')
+    def check_search_range(
+        cls, v: tuple[float, float]
+    ) -> tuple[float, float]:
+        """Check if the search range is valid."""
+        if v[0] >= v[1]:
+            raise ValueError(
+                'search_range must be a tuple where the first value is less than the second value'
+            )
+        return v
 
 
 class DifferentialEvolution:
@@ -12,116 +84,124 @@ class DifferentialEvolution:
     function of interest.
     """
 
-    def __init__(self, search_range, n_population, dimensions, obj_func, F, CR, max_iter, opposition=False, JR=1.0):
-        """
-        Description: Initializes the parameters for running the algorithm.
+    def __init__(
+        self,
+        config: DifferentialEvolutionConfig,
+        obj_function: Callable[[ndarray], float],
+    ) -> None:
+        """Initializes the parameters for running the algorithm.
 
         Args:
-            search_range: Lower and upper limit for the variables that are to be optimized.
-            n_population: Number of candidates to solve the problem.
-            dimensions  : Number of variables to be optimized.
-            obj_func    : Function to be minimized.
-            F           : Step size towards the difference vector.
-            CR          : Probability of crossover occurrence.
-            max_iter    : Maximum number of iterations.
-            opposition  : Whether the algorithm will run with opposition. Default: False.
-            JR          : Jump rate. Probability of occurrence of opposition.
+            config (DifferentialEvolutionConfig): Configuration object containing all the parameters.
+            obj_function (Callable[[ndarray], float]): Objective function to be minimized.
         """
+        self.config = config
+        self.obj_function = obj_function
 
-        # storing the parameters
-        self.search_range = search_range
-        self.n_population = n_population
-        self.dimensions = dimensions
-        self.obj_func = obj_func
-        self.F = F
-        self.CR = CR
-        self.max_iter = max_iter
-        self.opposition = opposition
-        self.JR = JR
         self.best_vetor = None
         self.best_eval = None
         self.results = None
         self.avg_tracking = []
         self.best_tracking = []
-        self.candidates = np.arange(self.n_population)
 
-        # initializing the population
-        self.population = np.random.uniform(self.search_range[0],
-                                            self.search_range[1],
-                                            (self.n_population, self.dimensions))
+        self.candidates = np.arange(self.config.n_population)
+        self.population = np.random.uniform(
+            self.config.search_range[0],
+            self.config.search_range[1],
+            (self.config.n_population, self.config.dimensions),
+        )
 
-        # initializing the population with opposition
-        if self.opposition:
+        if self.config.opposition:
             lower = np.min(self.population)
             upper = np.max(self.population)
             diff = lower + upper
-            for i in range(round(self.n_population / 2)):
+            for i in range(round(self.config.n_population / 2)):
                 for j in range(self.population[i].shape[0]):
                     self.population[i][j] = diff - self.population[i][j]
 
-    def evaluate(self):
-        """
-        Description: Calculates the score for each vector (fitness).
-        """
 
-        return [self.obj_func(ind) for ind in self.population]
+    def _evaluate(self) -> list[float]:
+        """Calculates the score for each vector (fitness)."""
+        return [self.obj_function(ind) for ind in self.population]
 
-    def opposition_operator(self, vector, lower, upper):
-        """
-        Description: Operates opposition in vector.
+
+    def _opposition_operator(
+        self, vector: ndarray, lower: float, upper: float
+    ) -> ndarray:
+        """Operates opposition in vector.
 
         Args:
-            vector: Solution candidate.
-            lower : Lower value within the generation.
-            upper : Upper value within the generation.
-        """
+            vector (ndarray): Vector to operate opposition.
+            lower (float): Lower limit for the variables.
+            upper (float): Upper limit for the variables.
 
+        Returns:
+            ndarray: Vector with opposition.
+        """
         diff = lower + upper
         for i in range(vector.shape[0]):
             vector[i] = diff - vector[i]
-
         return vector
 
-    def mutation(self, vectors):
-        """
-        Description: Operates mutation on vectors.
+
+    def _mutation(self, vectors: ndarray) -> ndarray:
+        """Operates mutation on vectors.
 
         Args:
-            vectors: Solution candidates.
-        """
+            vectors (ndarray): Vectors to operate mutation.
 
-        return vectors[0] + self.F * (vectors[1] - vectors[2])
-
-    def crossover(self, mutated_vector, target_vector):
+        Returns:
+            ndarray: Mutated vector.
         """
-        Description: Operates crossover on vectors.
+        return vectors[0] + self.config.f * (vectors[1] - vectors[2])
+
+
+    def _crossover(
+        self, mutated_vector: ndarray, target_vector: ndarray
+    ) -> ndarray:
+        """Operates crossover on vectors.
 
         Args:
-            mutated_vector: Candidate for the mutated solution.
-            target_vector : Solution candidate.
+            mutated_vector (ndarray): Mutated vector.
+            target_vector (ndarray): Target vector.
+
+        Returns:
+            ndarray: Trial vector.
         """
-
-        # rng for check if crossover will happen.
-        rng = np.random.rand(self.dimensions)
-
-        # doing the crossover.
-        trial = np.array([mutated_vector[k] if rng[k] < self.CR else target_vector[k] for k in range(self.dimensions)])
-
+        rng = np.random.rand(self.config.dimensions)
+        trial = np.array(
+            [
+                mutated_vector[k]
+                if rng[k] < self.config.cr
+                else target_vector[k]
+                for k in range(self.config.dimensions)
+            ]
+        )
         return trial
 
-    def plot(self, log=False, avg=True):
-        """
-        Description:
+
+    def plot(self, log: bool = False, avg: bool = True) -> None:
+        """Plot the results.
 
         Args:
-            log: Y axis with log scale.
-            avg: Whether the plot should consider the average evolution.
+            log (bool, optional): Whether to plot the evaluation in log scale. Defaults to False.
+            avg (bool, optional): Whether to plot the average evaluation. Defaults to True.
         """
-
         plt.figure(figsize=(10, 7))
         if avg:
-            plt.plot(np.arange(len(self.avg_tracking)), self.avg_tracking, c='k', linestyle='--', label='average')
-        plt.plot(np.arange(len(self.best_tracking)), self.best_tracking, c='k', label='best')
+            plt.plot(
+                np.arange(len(self.avg_tracking)),
+                self.avg_tracking,
+                c='k',
+                linestyle='--',
+                label='average',
+            )
+        plt.plot(
+            np.arange(len(self.best_tracking)),
+            self.best_tracking,
+            c='k',
+            label='best',
+        )
         plt.xlim((0, len(self.avg_tracking)))
         if log:
             plt.yscale('log')
@@ -132,71 +212,55 @@ class DifferentialEvolution:
         sns.despine(bottom=False, left=False)
         plt.show()
 
-    def fit(self):
-        """
-        Description: Runs the DE algorithm.
-        """
 
-        # evaluating the population.
-        eval_pop = self.evaluate()
-
-        # storing the best results
+    def fit(self) -> None:
+        """Runs the DE algorithm."""
+        eval_pop = self._evaluate()
         self.best_vetor = self.population[np.argmin(eval_pop)]
         self.best_eval = np.min(eval_pop)
-
-        # list to store the results
         self.results = [self.best_eval]
         self.avg_tracking.append(np.mean(eval_pop))
         self.best_tracking.append(self.best_eval)
 
-        for i in range(self.max_iter):
-
-            # teste
+        for i in range(self.config.max_iter):
             lower = np.min(self.population)
             upper = np.max(self.population)
 
-            for j in range(self.n_population):
-
-                if self.opposition:
+            for j in range(self.config.n_population):
+                rng = 1.0
+                if self.config.opposition:
                     rng = np.random.rand()
-                else:
-                    rng = 1.0
 
-                if rng < self.JR:
-                    trial = self.opposition_operator(self.population[j], lower, upper)
-                    trial_eval = self.obj_func(trial)
+                if rng < self.config.jr:
+                    trial = self._opposition_operator(
+                        self.population[j], lower, upper
+                    )
+                    trial_eval = self.obj_function(trial)
                 else:
-
-                    # selecting candidates for mutation
                     vectors_idx = np.delete(self.candidates, j)
                     vectors = self.population[np.random.choice(vectors_idx, 3)]
+                    mutated = self._mutation(vectors)
+                    mutated = np.clip(
+                        mutated,
+                        self.config.search_range[0],
+                        self.config.search_range[1],
+                    )
+                    trial = self._crossover(mutated, self.population[j])
+                    trial_eval = self.obj_function(trial)
 
-                    # mutation
-                    mutated = self.mutation(vectors)
-                    mutated = np.clip(mutated, self.search_range[0], self.search_range[1])
-
-                    # crossover
-                    trial = self.crossover(mutated, self.population[j])
-
-                    # evaluating the trial vector
-                    trial_eval = self.obj_func(trial)
-
-                # check if trial evaluation is better
                 if trial_eval < eval_pop[j]:
                     self.population[j] = trial
                     eval_pop[j] = trial_eval
 
-            # updating the best evaluation
             self.best_eval = np.min(eval_pop)
-
-            # tracking the results
             self.avg_tracking.append(np.mean(eval_pop))
             self.best_tracking.append(self.best_eval)
 
-            # storing the new best candidate if it exists
             if self.best_eval < self.results[-1]:
                 self.best_vetor = self.population[np.argmin(eval_pop)]
                 self.results.append(self.best_eval)
-                print(f'Melhor solução da iteração {i} ---> Vetor:{self.best_vetor}, avaliação: {self.best_eval}.')
+                print(
+                    f'Best solution at iteration {i} -> Vector:{self.best_vetor}, evaluation: {self.best_eval}.'
+                )
             if self.results[-1] == 0:
                 break

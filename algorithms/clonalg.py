@@ -61,7 +61,7 @@ class ClonalgConfig(BaseModel):
     )
 
     @field_validator('search_range')
-    def check_search_range(cls, v):
+    def check_search_range(cls, v): # noqa
         """Check if the search range is valid."""
         if v[0] >= v[1]:
             raise ValueError(

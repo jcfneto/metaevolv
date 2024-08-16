@@ -24,12 +24,50 @@ The algorithm is controlled by the following parameters:
 - Maximum number of iterations: Maximum number of iterations.
 """
 
+from typing import Callable
+
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
-
+from numpy import ndarray
+from pydantic import BaseModel, Field, field_validator
 
 sns.set_style('whitegrid')
+
+
+class ClonalgConfig(BaseModel):
+    """Configuration for the Clonal Selection Algorithm."""
+
+    search_range: tuple[float, float]
+    n_population: int = Field(
+        ..., ge=1, description='Number of candidates must be >= 1'
+    )
+    dimensions: int = Field(
+        ..., ge=1, description='Number of variables must be >= 1'
+    )
+    obj_function: Callable[[ndarray], float]
+    sr: float = Field(
+        ...,
+        ge=0.0,
+        le=1.0,
+        description='Selection rate must be between 0 and 1',
+    )
+    cr: float = Field(
+        ..., ge=0.0, le=1.0, description='Cloning rate must be between 0 and 1'
+    )
+    gama: float = Field(..., description='Mutation radius')
+    max_iter: int = Field(
+        ..., ge=1, description='Maximum number of iterations must be >= 1'
+    )
+
+    @field_validator('search_range')
+    def check_search_range(cls, v):
+        """Check if the search range is valid."""
+        if v[0] >= v[1]:
+            raise ValueError(
+                'search_range must be a tuple where the first value is less than the second value'
+            )
+        return v
 
 
 class Clonalg:
@@ -40,111 +78,87 @@ class Clonalg:
 
     def __init__(
         self,
-        search_range,
-        n_population,
-        dimensions,
-        obj_function,
-        sr,
-        cr,
-        gama,
-        max_iter,
-    ):
+        config: ClonalgConfig,
+        obj_function: Callable[[ndarray], float],
+    ) -> None:
         """
-        Description: Initializes the parameters for running the algorithm.
+        Initializes the parameters for running the algorithm.
 
         Args:
-            search_range: Lower and upper limit for the variables that are to be optimized.
-            n_population: Number of candidates to solve the problem.
-            dimensions  : Number of variables to be optimized.
-            obj_function: Function to be minimized.
-            sr          : Selectio rate.
-            cr          : Cloning rate.
-            gama        : Mutation radius.
-            max_iter    : Maximum number of iterations.
+            config (ClonalgConfig): Configuration object containing search range, population size,
+                dimensions, etc.
+            obj_function (Callable[[ndarray], float]): Function to be minimized.
         """
-
-        # storing the parameters
-        self.max_iter = max_iter
-        self.search_range = search_range
-        self.n_population = n_population
-        self.dimensions = dimensions
+        self.config = config
         self.obj_function = obj_function
-        self.sr = sr
-        self.cr = cr
-        self.gama = gama
 
-        # lsit to store the results
-        self.best_ind = []
-        self.avg_top_10 = []
+        self.best_ind: list[float] = []
+        self.avg_top_10: list[float] = []
 
-        # initializing the population
-        self.population_rank = np.array([])
         self.population = np.random.uniform(
-            self.search_range[0],
-            self.search_range[1],
-            (self.n_population, self.dimensions),
+            self.config.search_range[0],
+            self.config.search_range[1],
+            (self.config.n_population, self.config.dimensions),
         )
+        self.population_rank = self._ranking(self.population)
 
-        # doing the first ranking
-        self.ranking()
+        self._store_best_results()
 
-        # storing the first best
-        self.best_ind.append(self.population_rank[0][1])
-        self.avg_top_10.append(
-            np.mean([j for i, j in self.population_rank[:10]])
-        )
 
-    def affinity(self, x):
-        """
-        Description: Calculates the score for each individual.
+    def affinity(self, x: ndarray) -> float:
+        """Calculates the score for each individual.
 
         Args:
-            x: Array containing the values to be evaluated.
+            x (ndarray): Array containing the values to be evaluated.
 
-        Returns: Individual score (evaluation).
+        Returns:
+            float: Individual score (evaluation).
         """
-
         return self.obj_function(x)
 
-    def ranking(self):
-        """
-        Description: Avalia cada indivíduo e classifica-o.
-        """
 
-        self.population_rank = np.array(
-            [(p, self.affinity(p)) for p in self.population]
-        )
-        self.population_rank = sorted(self.population_rank, key=lambda x: x[1])
-
-    def mutation(self, clone, alfa):
-        """
-        Description: Causes the mutation according to the probability of occurrence.
+    def _ranking(self, population: ndarray) -> ndarray:
+        """Evaluates and ranks each individual.
 
         Args:
-            clone: Clone of individual.
-            alfa : Mutation rate.
+            population (ndarray): Population to be ranked.
 
-        Returns: Individual after mutation.
+        Returns:
+            ndarray: Ranked population.
         """
+        return np.array(
+            sorted(
+                [(p, self.affinity(p)) for p in population], key=lambda x: x[1]
+            )
+        )
 
-        for k in range(clone.shape[0]):
-            if np.random.rand() < alfa:
-                clone[k] = np.random.uniform(
-                    self.search_range[0], self.search_range[1], 1
-                )[0]
+
+    def mutation(self, clone: ndarray, alfa: float) -> ndarray:
+        """Causes the mutation according to the probability of occurrence.
+
+        Args:
+            clone (ndarray): Clone of individual.
+            alfa (float): Mutation rate.
+
+        Returns:
+            ndarray: Individual after mutation.
+        """
+        mutation_mask = np.random.rand(clone.shape[0]) < alfa
+        clone[mutation_mask] = np.random.uniform(
+            self.config.search_range[0],
+            self.config.search_range[1],
+            np.sum(mutation_mask),
+        )
         return clone
 
-    def plot(self, avg=True, log=False):
-        """
-        Description: Plot the results.
+
+    def plot(self, avg: bool = True, log: bool = False) -> None:
+        """Plot the results.
 
         Args:
-            avg: Shows the average of the top 10 individuals per generation. Default: True.
-            log: Y axis in log scale.
-
-        Returns: Plot.
+            avg (bool): Shows the average of the top 10 individuals per generation.
+            log (bool): Y axis in log scale.
         """
-
         x = range(len(self.best_ind))
         plt.figure(figsize=(8, 5))
         plt.plot(x, self.best_ind, c='k', label='best')
@@ -167,52 +181,40 @@ class Clonalg:
         sns.despine(bottom=False, left=False)
         plt.show()
 
-    def fit(self):
-        """
-        Description: Runs the Clonalg algorithm.
-        """
 
-        # generations
+    def fit(self) -> None:
+        """Runs the Clonalg algorithm."""
         for gen in range(self.max_iter):
-
-            # it clones the best individuals
-            for i in range(1, int(self.sr * self.n_population) + 1):
-                nc = round((self.cr * self.n_population) / i)
-                fit = 1 - (i - 1) / (self.n_population - 1)
+            for i in range(
+                1, int(self.config.sr * self.config.n_population) + 1
+            ):
+                nc = round((self.config.cr * self.config.n_population) / i)
+                fit = 1 - (i - 1) / (self.config.n_population - 1)
                 clones = np.tile(self.population_rank[i - 1][0], (nc, 1))
-                alfa = self.gama * np.exp(-fit)
+                alfa = self.config.gama * np.exp(-fit)
 
-                # mutation of clones
                 for j in range(nc):
                     clone = self.mutation(clones[j], alfa)
                     clone_fit = self.affinity(clone)
 
-                    # if clone fitness is better than the original, the clone replaces then
                     if clone_fit < self.population_rank[i - 1][1]:
                         self.population_rank[i - 1] = (clone, clone_fit)
 
-            # new population
-            individuals = np.array([i for i, _ in self.population_rank])
-            new_individuals = np.random.uniform(
-                self.search_range[0],
-                self.search_range[1],
-                (
-                    int(self.n_population - self.sr * self.n_population),
-                    self.dimensions,
-                ),
+            num_new_individuals = self.config.n_population - int(
+                self.config.sr * self.config.n_population
             )
+            new_individuals = np.random.uniform(
+                self.config.search_range[0],
+                self.config.search_range[1],
+                (num_new_individuals, self.config.dimensions),
+            )
+            individuals = np.array([i for i, _ in self.population_rank])
             self.population = np.concatenate((individuals, new_individuals))
 
-            # ranking the individuals
-            self.ranking()
+            self.population_rank = self._ranking(self.population)
 
-            # storing the best results
-            self.best_ind.append(self.population_rank[0][1])
-            self.avg_top_10.append(
-                np.mean([j for i, j in self.population_rank[:10]])
-            )
+            self._store_best_results()
 
-            # early stop. Checking if the optimal individual was found
             if np.min(self.best_ind) == 0:
                 print(
                     f'[{gen}] The two best solutions:'
@@ -220,3 +222,11 @@ class Clonalg:
                     f'\nf{np.round(self.population_rank[1][0], 4)} = {np.round(self.population_rank[1][1], 4)}'
                 )
                 break
+
+
+    def _store_best_results(self) -> None:
+        """Stores the best individual and the average of the top 10 individuals."""
+        self.best_ind.append(self.population_rank[0][1])
+        self.avg_top_10.append(
+            np.mean([j for _, j in self.population_rank[:10]])
+        )

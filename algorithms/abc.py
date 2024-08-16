@@ -1,4 +1,30 @@
-"""Artificial Bee Colony (ABC) algorithm."""
+"""Artificial Bee Colony (ABC) algorithm.
+
+This algorithm is inspired by the foraging behavior of honey bees. 
+The algorithm consists of three types of bees: employed bees, onlooker bees, 
+and scout bees. The employed bees search for food sources, the onlooker bees 
+choose the best food sources found by the employed bees, and the scout bees are 
+responsible for finding new food sources.
+
+The ABC algorithm is a population-based optimization algorithm that is used to
+solve optimization problems. It is based on the following steps:
+
+1. Initialization: The algorithm starts by generating a population of food sources.
+2. Employed bee phase: The employed bees search for food sources.
+3. Onlooker bee phase: The onlooker bees choose the best food sources found by the employed bees.
+4. Scout bee phase: The scout bees find new food sources.
+5. Stopping criterion: The algorithm stops when a stopping criterion is met.
+6. Evaluation: The food sources are evaluated.
+7. Early stop: The algorithm stops if the optimal solution is found.
+
+The algorithm is controlled by the following parameters:
+
+- Search range: Lower and upper limit for the variables that are to be optimized.
+- Population size: Number of food sources.
+- Dimensions: Number of variables to be optimized.
+- Maximum number of iterations: Maximum number of iterations.
+- Limit: Number of attempts to improve the solution.
+"""
 
 from typing import Callable
 
@@ -73,7 +99,11 @@ class ABC:
         while partner == k:
             partner = np.random.randint(self.config.n_population)
 
-        new_fs = fs[k] + np.random.uniform(-1, 1, self.config.dimensions) * (fs[k] - fs[partner])
+        new_fs = (
+            fs[k] +
+            np.random.uniform(-1, 1, self.config.dimensions) *
+            (fs[k] - fs[partner])
+        )
 
         new_fsq = self.obj_function(new_fs)
         if new_fsq < fsq[k]:
@@ -177,9 +207,15 @@ class ABC:
     def fit(self) -> None:
         """Runs the ABC algorithm."""
         for _ in range(self.config.max_iter):
-            self.fs, self.fsq, self.trials = self._employed_bee_phase(self.fs, self.fsq, self.trials)
-            self.fs, self.fsq, self.trials = self._onlooker_bee_phase(self.fs, self.fsq, self.trials)
-            self.fs, self.fsq, self.trials = self._scout_bee_phase(self.fs, self.fsq, self.trials)
+            self.fs, self.fsq, self.trials = self._employed_bee_phase(
+                self.fs, self.fsq, self.trials
+            )
+            self.fs, self.fsq, self.trials = self._onlooker_bee_phase(
+                self.fs, self.fsq, self.trials
+            )
+            self.fs, self.fsq, self.trials = self._scout_bee_phase(
+                self.fs, self.fsq, self.trials
+            )
 
             best_fsq = np.min(self.fsq)
             self.best_iter.append(best_fsq)

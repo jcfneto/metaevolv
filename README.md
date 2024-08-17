@@ -69,7 +69,7 @@ ga = GeneticAlgorithm(config, objective_function)
 ga.fit()
 
 # Display the results
-print(f"Best solution found: {ga.best_ind[-1]}")
+print(f"Best solution found: {ga.best_ind}")
 print(f"Objective function value at the best solution: {ga.best_eval}")
 ```
 

@@ -320,7 +320,7 @@ class GeneticAlgorithm:
                 self.best_eval = self.population_eval[best_id]
                 self.best_ind = self.population_decimal[best_id]
                 print(
-                    f'[{gen+1}] --> Novo melhor indivíduo: f({self.best_ind}) = {self.best_eval}.'
+                    f'[{gen+1}] --> Best individual: {self.best_ind} | Best evaluation: {self.best_eval}'
                 )
             if self.best_eval == 0.0:
                 break

@@ -67,9 +67,7 @@ class DifferentialEvolutionConfig(BaseModel):
     )
 
     @field_validator('search_range')
-    def check_search_range(
-        cls, v: tuple[float, float]
-    ) -> tuple[float, float]:
+    def check_search_range(cls, v: tuple[float, float]) -> tuple[float, float]:
         """Check if the search range is valid."""
         if v[0] >= v[1]:
             raise ValueError(
@@ -119,11 +117,9 @@ class DifferentialEvolution:
                 for j in range(self.population[i].shape[0]):
                     self.population[i][j] = diff - self.population[i][j]
 
-
     def _evaluate(self) -> list[float]:
         """Calculates the score for each vector (fitness)."""
         return [self.obj_function(ind) for ind in self.population]
-
 
     def _opposition_operator(
         self, vector: ndarray, lower: float, upper: float
@@ -143,7 +139,6 @@ class DifferentialEvolution:
             vector[i] = diff - vector[i]
         return vector
 
-
     def _mutation(self, vectors: ndarray) -> ndarray:
         """Operates mutation on vectors.
 
@@ -154,7 +149,6 @@ class DifferentialEvolution:
             ndarray: Mutated vector.
         """
         return vectors[0] + self.config.f * (vectors[1] - vectors[2])
-
 
     def _crossover(
         self, mutated_vector: ndarray, target_vector: ndarray
@@ -179,7 +173,6 @@ class DifferentialEvolution:
         )
         return trial
 
-
     def plot(self, log: bool = False, avg: bool = True) -> None:
         """Plot the results.
 
@@ -192,7 +185,7 @@ class DifferentialEvolution:
             plt.plot(
                 np.arange(len(self.avg_tracking)),
                 self.avg_tracking,
-                c='k',
+                c='r',
                 linestyle='--',
                 label='average',
             )
@@ -211,7 +204,6 @@ class DifferentialEvolution:
         plt.legend()
         sns.despine(bottom=False, left=False)
         plt.show()
-
 
     def fit(self) -> None:
         """Runs the DE algorithm."""

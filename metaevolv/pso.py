@@ -123,7 +123,6 @@ class PSO:
         self.movements = 1
         self.hist = []
 
-
     def _update_velocities_particles(self, k: int) -> None:
         """Updates the position of particles and their speeds.
 
@@ -158,7 +157,6 @@ class PSO:
             self.velocities,
         )
 
-
     def _update_bests(self, i: int) -> None:
         """Updates the p_best and g_best.
 
@@ -176,15 +174,26 @@ class PSO:
                 self.g_best_eval.append(xi_eval)
                 self.g_best = xi
 
-
-    def plot(self, log: bool = False) -> None:
+    def plot(self, avg: bool = True, log: bool = False) -> None:
         """Plot the score evolution graph.
 
         Args:
             log (bool, optional): If True, the y-axis will be in logarithmic scale. Defaults to False.
         """
         plt.figure(figsize=(10, 7))
-        plt.plot(np.arange(0, self.movements), self.evol_best_eval, c='black')
+        plt.plot(
+            np.arange(0, self.movements),
+            self.evol_best_eval,
+            c='black',
+            label='Best',
+        )
+        if avg:
+            plt.axhline(
+                np.mean(self.evol_best_eval),
+                color='red',
+                linestyle='--',
+                label='Average',
+            )
         if log:
             plt.yscale('log')
         plt.xlim((0, self.movements))
@@ -192,8 +201,8 @@ class PSO:
         plt.ylabel('Evaluation')
         plt.title('Evaluation by Iteration')
         sns.despine(bottom=False, left=False)
+        plt.legend()
         plt.show()
-
 
     def fit(self) -> None:
         """Runs the PSO algorithm."""
@@ -208,3 +217,7 @@ class PSO:
 
             for i in range(self.config.n_particles):
                 self._update_bests(i=i)
+
+        print(
+            f'Best solution: {self.g_best} with objective function value: {self.g_best_eval[-1]}'
+        )

@@ -1,6 +1,6 @@
 """Genetic Algorithm (GA) algorithm.
 
-This module contains the Genetic Algorithm (GA) algorithm. The GA is a 
+This module contains the Genetic Algorithm (GA) algorithm. The GA is a
 population-based optimization algorithm that uses the principles of natural
 selection to evolve a population of candidate solutions. The algorithm is
 based on the following steps:
@@ -113,7 +113,6 @@ class GeneticAlgorithm:
             ]
         )
 
-
     def _binary_to_decimal(self) -> None:
         """Converts the binary population to decimal."""
         population_decimal = []
@@ -137,13 +136,11 @@ class GeneticAlgorithm:
             population_decimal.append(d)
         self.population_decimal = np.array(population_decimal)
 
-
     def _evaluate(self) -> None:
         """Evaluates the population."""
         self.population_eval = np.array(
             [self.obj_function(d) for d in self.population_decimal]
         )
-
 
     def _tournament(self) -> None:
         """Selects the best individual from a tournament."""
@@ -157,7 +154,6 @@ class GeneticAlgorithm:
             selected.append(self.population[winner])
         self.selected = np.array(selected)
 
-
     def _roulette_wheel(self) -> None:
         """Selects individuals using the roulette wheel method."""
         invert = 1 / (self.population_eval + 1)
@@ -169,14 +165,12 @@ class GeneticAlgorithm:
         )
         self.selected = np.array(self.population)[ids].tolist()
 
-
     def _selection(self) -> None:
         """Selects the individuals for the next generation."""
         if self.config.selection_type == 'tournament':
             self._tournament()
         elif self.config.selection_type == 'roulette_wheel':
             self._roulette_wheel()
-
 
     def _one_point(self, p1: ndarray, p2: ndarray) -> tuple[ndarray, ndarray]:
         """Performs the one-point crossover.
@@ -192,7 +186,6 @@ class GeneticAlgorithm:
         c1 = np.concatenate((p1[:cutoff], p2[cutoff:]))
         c2 = np.concatenate((p2[:cutoff], p1[cutoff:]))
         return c1, c2
-
 
     def _two_points(self, p1: ndarray, p2: ndarray) -> tuple[ndarray, ndarray]:
         """Performs the two-point crossover.
@@ -210,7 +203,6 @@ class GeneticAlgorithm:
         c1[cutoff[0] : cutoff[1]] = p2[cutoff[0] : cutoff[1]]
         c2[cutoff[0] : cutoff[1]] = p1[cutoff[0] : cutoff[1]]
         return c1, c2
-
 
     def _uniform(self, p1: ndarray, p2: ndarray) -> tuple[ndarray, ndarray]:
         """Performs the uniform crossover.
@@ -233,7 +225,6 @@ class GeneticAlgorithm:
         )
         return c1, c2
 
-
     def _crossover_prob_variation(self) -> None:
         """Variates the crossover probability."""
         if self.config.pc_variation == 'constant':
@@ -248,7 +239,6 @@ class GeneticAlgorithm:
                 + self.config.cp
             )
         self.mp = 1.0 - self.config.cp
-
 
     def _crossover(self, gen: int) -> None:
         """Performs the crossover operation.
@@ -272,7 +262,6 @@ class GeneticAlgorithm:
                 childrens += [parent1] + [parent2]
         self.population = np.array(childrens)
 
-
     def _bit_by_bit(self, gen: int) -> None:
         """Performs the bit-by-bit mutation.
 
@@ -283,7 +272,6 @@ class GeneticAlgorithm:
             for j in range(self.bitstring_size):
                 if np.random.rand() < self.mp[gen]:
                     self.population[i, j] = 1 - self.population[i, j]
-
 
     def _random_choice(self, gen: int) -> None:
         """Performs the random choice mutation.
@@ -296,7 +284,6 @@ class GeneticAlgorithm:
                 bit = np.random.randint(0, self.bitstring_size, 1)[0]
                 self.population[i, bit] = 1 - self.population[i, bit]
 
-
     def _mutation(self, gen: int) -> None:
         """Performs the mutation operation.
 
@@ -307,7 +294,6 @@ class GeneticAlgorithm:
             self._bit_by_bit(gen)
         elif self.config.mutation_type == 'random_choice':
             self._random_choice(gen)
-
 
     def fit(self) -> None:
         """Runs the Genetic Algorithm."""

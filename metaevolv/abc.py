@@ -1,9 +1,9 @@
 """Artificial Bee Colony (ABC) algorithm.
 
-This algorithm is inspired by the foraging behavior of honey bees. 
-The algorithm consists of three types of bees: employed bees, onlooker bees, 
-and scout bees. The employed bees search for food sources, the onlooker bees 
-choose the best food sources found by the employed bees, and the scout bees are 
+This algorithm is inspired by the foraging behavior of honey bees.
+The algorithm consists of three types of bees: employed bees, onlooker bees,
+and scout bees. The employed bees search for food sources, the onlooker bees
+choose the best food sources found by the employed bees, and the scout bees are
 responsible for finding new food sources.
 
 The ABC algorithm is a population-based optimization algorithm that is used to
@@ -40,6 +40,7 @@ sns.set_style('whitegrid')
 
 class ABCConfig(BaseModel):
     """Configuration for the ABC algorithm."""
+
     search_range: tuple[float, float]
     n_population: int
     dimensions: int
@@ -51,12 +52,10 @@ class ABC:
     """Artificial Bee Colony (ABC) algorithm."""
 
     def __init__(
-        self,
-        config: ABCConfig,
-        obj_function: Callable[[ndarray], float]
+        self, config: ABCConfig, obj_function: Callable[[ndarray], float]
     ) -> None:
         """Initializes the parameters for running the algorithm.
-        
+
         Args:
             config (ABCConfig): Configuration object containing search range, population size, dimensions, etc.
             obj_function (Callable[[np.ndarray], float]): Function to be minimized.
@@ -66,8 +65,9 @@ class ABC:
 
         self.trials = np.zeros(self.config.n_population, dtype=int)
         self.fs = np.random.uniform(
-            self.config.search_range[0], self.config.search_range[1], 
-            (self.config.n_population, self.config.dimensions)
+            self.config.search_range[0],
+            self.config.search_range[1],
+            (self.config.n_population, self.config.dimensions),
         )
         self.fsq = np.array([self.obj_function(ind) for ind in self.fs])
 
@@ -76,13 +76,8 @@ class ABC:
         self.best_fsq = np.inf
         self.best_fs = None
 
-
     def _employed_bee(
-        self,
-        fs: ndarray,
-        fsq: ndarray,
-        trials: ndarray,
-        k: int
+        self, fs: ndarray, fsq: ndarray, trials: ndarray, k: int
     ) -> tuple[ndarray, ndarray, ndarray]:
         """Routine of the worker bee.
 
@@ -99,10 +94,8 @@ class ABC:
         while partner == k:
             partner = np.random.randint(self.config.n_population)
 
-        new_fs = (
-            fs[k] +
-            np.random.uniform(-1, 1, self.config.dimensions) *
-            (fs[k] - fs[partner])
+        new_fs = fs[k] + np.random.uniform(-1, 1, self.config.dimensions) * (
+            fs[k] - fs[partner]
         )
 
         new_fsq = self.obj_function(new_fs)
@@ -115,20 +108,16 @@ class ABC:
 
         return fs, fsq, trials
 
-
     def _employed_bee_phase(
-        self,
-        fs: ndarray,
-        fsq: ndarray,
-        trials: ndarray
+        self, fs: ndarray, fsq: ndarray, trials: ndarray
     ) -> tuple[ndarray, ndarray, ndarray]:
         """Execute all routine of the worker bee.
-        
+
         Args:
             fs (ndarray): Vector representation of the food source.
             fsq (ndarray): Food source quality.
             trials (ndarray): Attempts to improve the solution.
-        
+
         Returns:
             tuple[ndarray, ndarray, ndarray]: Updated food sources, food source quality, and trials.
         """
@@ -137,24 +126,19 @@ class ABC:
 
         return fs, fsq, trials
 
-
     def _fitness(self, fsq: ndarray) -> ndarray:
         """Calculates the fitness of the food source.
-        
+
         Args:
             fsq (ndarray): Food source quality.
-        
+
         Returns:
             ndarray: Fitness of the food source.
         """
         return np.where(fsq >= 0, 1 / (1 + fsq), 1 / (1 - fsq))
 
-
     def _onlooker_bee_phase(
-        self,
-        fs: ndarray,
-        fsq: ndarray,
-        trials: ndarray
+        self, fs: ndarray, fsq: ndarray, trials: ndarray
     ) -> tuple[ndarray, ndarray, ndarray]:
         """Execute all routine of the onlooker bee.
 
@@ -174,12 +158,8 @@ class ABC:
 
         return fs, fsq, trials
 
-
     def _scout_bee_phase(
-        self,
-        fs: ndarray,
-        fsq: ndarray,
-        trials: ndarray
+        self, fs: ndarray, fsq: ndarray, trials: ndarray
     ) -> tuple[ndarray, ndarray, ndarray]:
         """Routine of the scout bee.
 
@@ -196,13 +176,12 @@ class ABC:
                 fs[i] = np.random.uniform(
                     self.config.search_range[0],
                     self.config.search_range[1],
-                    self.config.dimensions
+                    self.config.dimensions,
                 )
                 fsq[i] = self.obj_function(fs[i])
                 trials[i] = 0
 
         return fs, fsq, trials
-
 
     def fit(self) -> None:
         """Runs the ABC algorithm."""
@@ -225,8 +204,9 @@ class ABC:
                 self.best_fsq = best_fsq
                 self.best_fs = self.fs[np.argmin(self.fsq)]
 
-        print(f'Best solution: {self.best_fs} with objective function value: {self.best_fsq}')
-
+        print(
+            f'Best solution: {self.best_fs} with objective function value: {self.best_fsq}'
+        )
 
     def plot(self, avg: bool = False, log: bool = False) -> None:
         """Plot the optimization progress.

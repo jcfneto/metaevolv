@@ -60,7 +60,7 @@ class ClonalgConfig(BaseModel):
     )
 
     @field_validator('search_range')
-    def check_search_range(cls, v): # noqa
+    def check_search_range(cls, v):   # noqa
         """Check if the search range is valid."""
         if v[0] >= v[1]:
             raise ValueError(
@@ -103,7 +103,6 @@ class Clonalg:
 
         self._store_best_results()
 
-
     def affinity(self, x: ndarray) -> float:
         """Calculates the score for each individual.
 
@@ -114,7 +113,6 @@ class Clonalg:
             float: Individual score (evaluation).
         """
         return self.obj_function(x)
-
 
     def _ranking(self, population: ndarray) -> ndarray:
         """Evaluates and ranks each individual.
@@ -129,8 +127,7 @@ class Clonalg:
             [(p, self.affinity(p)) for p in population], key=lambda x: x[1]
         )
 
-
-    def mutation(self, clone: ndarray, alfa: float) -> ndarray:
+    def _mutation(self, clone: ndarray, alfa: float) -> ndarray:
         """Causes the mutation according to the probability of occurrence.
 
         Args:
@@ -147,7 +144,6 @@ class Clonalg:
             np.sum(mutation_mask),
         )
         return clone
-
 
     def plot(self, avg: bool = True, log: bool = False) -> None:
         """Plot the results.
@@ -178,7 +174,6 @@ class Clonalg:
         sns.despine(bottom=False, left=False)
         plt.show()
 
-
     def fit(self) -> None:
         """Runs the Clonalg algorithm."""
         for gen in range(self.config.max_iter):
@@ -191,7 +186,7 @@ class Clonalg:
                 alfa = self.config.gama * np.exp(-fit)
 
                 for j in range(nc):
-                    clone = self.mutation(clones[j], alfa)
+                    clone = self._mutation(clones[j], alfa)
                     clone_fit = self.affinity(clone)
 
                     if clone_fit < self.population_rank[i - 1][1]:
@@ -213,13 +208,11 @@ class Clonalg:
             self._store_best_results()
 
             if np.min(self.best_ind) == 0:
-                print(
-                    f'[{gen}] The two best solutions:'
-                    f'\nf{np.round(self.population_rank[0][0], 4)} = {np.round(self.population_rank[0][1], 4)}'
-                    f'\nf{np.round(self.population_rank[1][0], 4)} = {np.round(self.population_rank[1][1], 4)}'
-                )
                 break
 
+        print(
+            f'Best solution: {self.population_rank[0][0]} with evaluation: {self.population_rank[0][1]}'
+        )
 
     def _store_best_results(self) -> None:
         """Stores the best individual and the average of the top 10 individuals."""

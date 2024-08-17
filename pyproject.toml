@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "metaevolv"
+version = "0.1.1"
+description = "A Python library for various optimization algorithms"
+readme = "README.md"
+requires-python = ">=3.6"
+license = {text = "MIT"}
+authors = [
+    {name = "José Carlos", email = "eng.jcfneto@gmail.com"}
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence"
+]
+dependencies = [
+    "numpy>=2.0.1",
+    "seaborn>=0.13.2",
+    "matplotlib>=3.9.2",
+    "pydantic>=2.8.2"
+]
+
+[tool.setuptools.packages.find]
+where = ["metaevolv"]
+

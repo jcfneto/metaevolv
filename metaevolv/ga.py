@@ -37,6 +37,8 @@ from numpy import ndarray
 from pydantic import BaseModel, Field, field_validator
 
 
+# TODO: implement elitism.
+# TODO: devise a technique that increases the mutation rate as generations lose diversity.
 class GAConfig(BaseModel):
     """Configuration class for Genetic Algorithm (GA) algorithm."""
 
@@ -91,6 +93,9 @@ class GeneticAlgorithm:
             config (GAConfig): Configuration object containing all the parameters.
         """
         self.config = config
+        self.config.search_range = [
+            self.config.search_range for _ in range(config.dimensions)
+        ]
         self.obj_function = obj_function
 
         self.selected = np.array([])

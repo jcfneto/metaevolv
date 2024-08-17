@@ -45,7 +45,6 @@ class ClonalgConfig(BaseModel):
     dimensions: int = Field(
         ..., ge=1, description='Number of variables must be >= 1'
     )
-    obj_function: Callable[[ndarray], float]
     sr: float = Field(
         ...,
         ge=0.0,
@@ -126,10 +125,8 @@ class Clonalg:
         Returns:
             ndarray: Ranked population.
         """
-        return np.array(
-            sorted(
-                [(p, self.affinity(p)) for p in population], key=lambda x: x[1]
-            )
+        return sorted(
+            [(p, self.affinity(p)) for p in population], key=lambda x: x[1]
         )
 
 
@@ -184,7 +181,7 @@ class Clonalg:
 
     def fit(self) -> None:
         """Runs the Clonalg algorithm."""
-        for gen in range(self.max_iter):
+        for gen in range(self.config.max_iter):
             for i in range(
                 1, int(self.config.sr * self.config.n_population) + 1
             ):

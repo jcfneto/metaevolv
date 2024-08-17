@@ -1,5 +1,0 @@
-numpy
-seaborn
-numpy
-matplotlib
-pydantic

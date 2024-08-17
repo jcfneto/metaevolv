@@ -1,6 +1,6 @@
 """Metaevolv: A Python library for metaheuristic optimization algorithms."""
 
-__version__ = "0.1.1"
+__version__ = "0.1.3"
 
 from .abc import ABC
 from .clonalg import Clonalg
